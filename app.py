@@ -6,7 +6,7 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 # ==================== CONFIG ====================
-BOT_TOKEN = "YOUR_MAIN_BOT_TOKEN_HERE"
+BOT_TOKEN = "8745866721:AAHxyMyLu0D8-vuvAM5sP0RV5nLDYot0pOU"
 CASHFREE_APP_ID = "12765199c4c89286efc175eec099156721"
 CASHFREE_SECRET = "cfsk_ma_prod_1f9abc0880569bd7a4b0ea1c712adb53_ad67e85f"
 GROQ_API = "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"

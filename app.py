@@ -1,4 +1,4 @@
-import os, json, hmac, hashlib, base64, asyncio, threading, requests, sys
+import os, json, hmac, hashlib, base64, asyncio, threading, requests, sys, time, multiprocessing
 from datetime import datetime, timedelta
 from flask import Flask, request, jsonify, render_template_string
 from flask_sqlalchemy import SQLAlchemy
@@ -6,10 +6,9 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters, ContextTypes
 
 # ==================== HARDCODED CONFIG ====================
-BOT_TOKEN = "8745866721:AAE5wTjgo1g2A8rVEDmVBKYzZ69sTLb1ZF"  # Tera token
+BOT_TOKEN = "8745866721:AAHxyMyLu0D8-vuvAM5sP0RV5nLDYot0pOU"
 CASHFREE_APP_ID = "12765199c4c89286efc175eec099156721"
 CASHFREE_SECRET = "cfsk_ma_prod_1f9abc0880569bd7a4b0ea1c712adb53_ad67e85f"
-GROQ_API = "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"
 ADMIN_ID = "gaurav_beniwal_0001"
 CASHFREE_API = "https://api.cashfree.com/pg"
 
@@ -140,7 +139,6 @@ app.run_polling()
     user_bot.is_deployed = True
     db.session.commit()
     
-    # Run in background
     try:
         threading.Thread(target=lambda: os.system(f"python {filename} > /dev/null 2>&1 &"), daemon=True).start()
     except:
@@ -269,7 +267,6 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     elif context.user_data.get('state') == 'adminname':
         admin = text.replace('@', '').strip()
-        # Save user
         user = UserBot(
             user_id=uid,
             bot_token=context.user_data['bot_token'],
@@ -280,7 +277,6 @@ async def msg_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         db.session.add(user)
         db.session.commit()
         
-        # Create payment
         order = create_payment(uid)
         context.user_data['state'] = None
         
@@ -308,7 +304,7 @@ def home():
 
 @app.route('/health')
 def health():
-    return jsonify({"status": "healthy", "bot_status": "running"}), 200
+    return jsonify({"status": "healthy"}), 200
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
@@ -363,27 +359,27 @@ def admin():
 
 # ==================== RUN BOT ====================
 def run_telegram_bot():
-    """Run Telegram bot with proper error handling"""
-    try:
-        print("🤖 Starting Telegram bot...")
-        bot = Application.builder().token(BOT_TOKEN).build()
-        bot.add_handler(CommandHandler("start", start_cmd))
-        bot.add_handler(CallbackQueryHandler(button_cb))
-        bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
-        print("🤖 Bot started successfully! Polling...")
-        bot.run_polling(allowed_updates=Update.ALL_TYPES)
-    except Exception as e:
-        print(f"❌ Bot error: {e}")
-        # Retry after 10 seconds
-        import time
-        time.sleep(10)
-        run_telegram_bot()
+    """Run Telegram bot with retry"""
+    while True:
+        try:
+            print("🤖 Starting Telegram bot...")
+            bot = Application.builder().token(BOT_TOKEN).build()
+            bot.add_handler(CommandHandler("start", start_cmd))
+            bot.add_handler(CallbackQueryHandler(button_cb))
+            bot.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, msg_handler))
+            print("🤖 Bot started successfully! Polling...")
+            bot.run_polling(allowed_updates=Update.ALL_TYPES)
+        except Exception as e:
+            print(f"❌ Bot error: {e}")
+            time.sleep(5)
 
 # ==================== MAIN ====================
 if __name__ == "__main__":
-    # Start bot in background with retry
-    bot_thread = threading.Thread(target=run_telegram_bot, daemon=True)
-    bot_thread.start()
+    # Start bot in separate process
+    p = multiprocessing.Process(target=run_telegram_bot)
+    p.daemon = True
+    p.start()
+    print("✅ Bot process started")
     
     # Run Flask
     port = int(os.environ.get("PORT", 5000))
